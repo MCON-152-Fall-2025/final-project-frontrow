@@ -19,10 +19,10 @@ class AppUserTest {
         @DisplayName("Default constructor creates empty AppUser")
         void defaultConstructor() {
             AppUser user = new AppUser();
-            //assertNotNull(user);
+            assertNotNull(user);
             assertNull(user.getId());
             assertNull(user.getUsername());
-            //assertNull(user.getPassword());
+            assertNull(user.getPassword());
             assertNull(user.getDisplayName());
         }
 
@@ -32,8 +32,7 @@ class AppUserTest {
             AppUser user = new AppUser(1L, "john_doe", "secret123", "John Doe");
 
             assertEquals(1L, user.getId());
-            assertEquals("john_doe", 
-             // user.getUsername());
+            assertEquals("john_doe", user.getUsername());
             assertEquals("secret123", user.getPassword());
             assertEquals("John Doe", user.getDisplayName());
         }
