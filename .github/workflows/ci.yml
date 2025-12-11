@@ -21,4 +21,4 @@ jobs:
 
       - name: Run tests
         run: mvn -ntp -B test
-        working-directory: recipeshare/pom.xml
+        working-directory: recipeshare
