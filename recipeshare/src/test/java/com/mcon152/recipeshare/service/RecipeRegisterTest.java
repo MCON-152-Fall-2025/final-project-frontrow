@@ -27,7 +27,7 @@ class RecipeRegisterTest {
         req.setInstructions("N");
         req.setServings(3);
 
-        Recipe r = RecipeRegistry.createFromRequest(req);
+    //    Recipe r = RecipeRegistry.createFromRequest(req);
         assertTrue(r instanceof BasicRecipe);
         assertNull(r.getId());
         assertEquals("Title", r.getTitle());
