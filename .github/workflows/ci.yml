@@ -21,4 +21,4 @@ jobs:
 
       - name: Run tests
         run: mvn -ntp -B test
-        working-directory: final-project-frontrow/recipeshare/pom.xml
+        working-directory: recipeshare/pom.xml
