@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 public class RecipeServiceImpl implements RecipeService, ScaleRecipe {
 
     private final RecipeRepository repo;
+    Map<Long, Integer> lastServings;
 
     public RecipeServiceImpl(RecipeRepository repo) {
         this.repo = repo;
@@ -125,4 +126,22 @@ public class RecipeServiceImpl implements RecipeService, ScaleRecipe {
                         .anyMatch(tag -> tag.getId() != null && tag.getId().equals(tagId)))
                 .collect(Collectors.toList());
     }
+    /*scale recipe through an Id*/
+    @Override
+    public void scaleRecipe(Long recipeId, int newServingSize){
+        while(newServingSize > 0) {
+            //hashmap that stores the recipe Id and it's older value
+            lastServings.put(recipeId, getRecipesByTagId(recipeId).getServings());
+            getRecipesByTagId(recipeId).setServings(newServingsSize);
+        }
+    }
+    @Override
+    //get the last value for a certain recipe and update it to it's servings to it's older value
+    public void undo(Long recipeId) {
+        //find last value of the recipe and update it
+        while(lastServings.containsKey(recipeId)) {
+            getRecipesByTagId(recipeId).setServings(lastServings.get(recipeId));
+        }
+    }
+
 }
