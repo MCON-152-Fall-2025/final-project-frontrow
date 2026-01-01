@@ -5,4 +5,4 @@ void execute();
 
 void undo();
 
-}
+}// scale recipe interface
