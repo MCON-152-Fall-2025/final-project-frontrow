@@ -10,7 +10,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
-public class RecipeServiceImpl implements RecipeService {
+public class RecipeServiceImpl implements RecipeService, ScaleRecipe {
 
     private final RecipeRepository repo;
 
