@@ -1,11 +1,13 @@
 package com.mcon152.recipeshare.service;
 
 import com.mcon152.recipeshare.domain.Recipe;
+import com.mcon152.recipeshare.domain.ScaleRecipe;
 import com.mcon152.recipeshare.domain.Tag;
 import com.mcon152.recipeshare.repository.RecipeRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -113,35 +115,34 @@ public class RecipeServiceImpl implements RecipeService, ScaleRecipe {
 
     @Override
     public List<Recipe> findRecipesByTag(String tagName) {
-        return repo.findAll().stream()
-                .filter(recipe -> recipe.getTags().stream()
-                        .anyMatch(tag -> tag.getName().equalsIgnoreCase(tagName)))
-                .collect(Collectors.toList());
+        return repo.findAll().stream().filter(recipe -> recipe.getTags().stream().anyMatch(tag -> tag.getName().equalsIgnoreCase(tagName))).collect(Collectors.toList());
     }
 
     @Override
     public List<Recipe> findRecipesByTagId(long tagId) {
-        return repo.findAll().stream()
-                .filter(recipe -> recipe.getTags().stream()
-                        .anyMatch(tag -> tag.getId() != null && tag.getId().equals(tagId)))
-                .collect(Collectors.toList());
+        return repo.findAll().stream().filter(recipe -> recipe.getTags().stream().anyMatch(tag -> tag.getId() != null && tag.getId().equals(tagId))).collect(Collectors.toList());
     }
     /*scale recipe through an Id*/
-    @Override
-    public void scaleRecipe(Long recipeId, int newServingSize){
-        while(newServingSize > 0) {
+
+    public void scaleRecipe(long recipeId, int newServingSize) {
+        while (newServingSize > 0) {
             //hashmap that stores the recipe Id and it's older value
-            lastServings.put(recipeId, getRecipesByTagId(recipeId).getServings());
-            getRecipesByTagId(recipeId).setServings(newServingsSize);
-        }
-    }
-    @Override
-    //get the last value for a certain recipe and update it to it's servings to it's older value
-    public void undo(Long recipeId) {
-        //find last value of the recipe and update it
-        while(lastServings.containsKey(recipeId)) {
-            getRecipesByTagId(recipeId).setServings(lastServings.get(recipeId));
+            lastServings.put(recipeId, getRecipeById(recipeId).get().getServings());
+            getRecipeById(recipeId).get().setServings(newServingSize);
         }
     }
 
+    //get the last value for a certain recipe and update it to it's servings to it's older value
+    public void undo(long recipeId) {
+        //find last value of the recipe and update it
+        while (lastServings.containsKey(recipeId)) {
+            Optional<Recipe> currRecipe = getRecipeById(recipeId);
+
+            if (currRecipe.isPresent()) {
+                int oldServings = lastServings.get(recipeId);
+                currRecipe.get().setServings(oldServings);
+            }
+        }
+
+    }
 }

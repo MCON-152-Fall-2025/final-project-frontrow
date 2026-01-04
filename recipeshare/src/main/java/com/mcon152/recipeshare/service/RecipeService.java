@@ -29,8 +29,8 @@ public interface RecipeService {
     List<Recipe> findRecipesByTagId(long tagId);
 
     // Scaling operations
-    Optional<Recipe> scaleServings(long recipeId, int newServings);
+    void scaleRecipe(long recipeId, int newServings);
 
-    Optional<Recipe> undoLastCommand(long recipeId);
+     void undo(long recipeId);
     
 }
