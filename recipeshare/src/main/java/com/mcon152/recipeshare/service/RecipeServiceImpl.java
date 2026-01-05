@@ -20,16 +20,17 @@ public class RecipeServiceImpl implements RecipeService, ScaleRecipe {
     private final RecipeRepository repo;
     private final Map<Long, Integer> lastServings = new HashMap<>();
     private final Map<Long, Deque<RecipeCommand>> commandHistory = new HashMap<>();
+
     public RecipeServiceImpl(RecipeRepository repo) {
         this.repo = repo;
     }
 
-    // ------------------ LOGGING HELPER ------------------
     private void logCommand(long recipeId, RecipeCommand command) {
         commandHistory
                 .computeIfAbsent(recipeId, k -> new LinkedList<>())
                 .push(command);
     }
+
     @Override
     public Recipe addRecipe(Recipe recipe) {
         recipe.setId(null); // ensure new entity
@@ -134,21 +135,17 @@ public class RecipeServiceImpl implements RecipeService, ScaleRecipe {
 
     public void scaleRecipe(long recipeId, int newServingSize) {
         if (newServingSize > 0) {
-        Optional<Recipe> recipe = repo.findById(recipeId);
+            Optional<Recipe> recipe = repo.findById(recipeId);
             //hashmap that stores the recipe Id and it's older value
-            if(recipe.isPresent()){
-            lastServings.put(recipeId, recipe.get().getServings());
+            if (recipe.isPresent()) {
+                lastServings.put(recipeId, recipe.get().getServings());
                 // log command for undo using Command Pattern
                 logCommand(recipeId, new ScaleServingsLogs(recipe.get()));
-            recipe.get().setServings(newServingSize);
-            repo.save(recipe.get()); // persist changes
-        }}
+                recipe.get().setServings(newServingSize);
+                repo.save(recipe.get()); // persist changes
+            }
+        }
     }
-
-
-
-
-
 
 
     public void undo(long recipeId) {
