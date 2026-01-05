@@ -2,44 +2,86 @@ package com.mcon152.recipeshare.service;
 
 import com.mcon152.recipeshare.domain.BasicRecipe;
 import com.mcon152.recipeshare.domain.Recipe;
-import org.junit.jupiter.api.*;
+import com.mcon152.recipeshare.repository.RecipeRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.*;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)
 class ScaleAndUndoTests {
 
-@InjectMocks
-private RecipeServiceImpl recipeService;
+    private RecipeServiceImpl recipeService;
+    private RecipeRepository repo;
 
-@Test
-@DisplayName("Scale Recipe scales properly")
-void scaleRecipeTest(){
-    long recipeId;
-  //we need to se the recipeID and then pass that in to scaleRecipe becuase the filed
-    //needs to be a long.
-    Recipe recipe = new BasicRecipe
-            (1L, "Cake", "Delicious cake", "Flour, Sugar, Eggs",
-                    "Mix and bake", 8);
-   recipeService.scaleRecipe(1L, 24);
-    assertEquals(24, recipe.getServings());
+    @BeforeEach
+    void setup() {
+        // Mock the repository
+        repo = Mockito.mock(RecipeRepository.class);
+
+        // Inject mock into service
+        recipeService = new RecipeServiceImpl(repo);
+    }
+
+    @Test
+    @DisplayName("Scale Recipe scales properly")
+    void scaleRecipeTest() {
+        Recipe recipe = new BasicRecipe(1L, "Cake", "Delicious cake", "Flour, Sugar, Eggs",
+                "Mix and bake", 8);
+
+        // Mock repository behavior
+        when(repo.findById(1L)).thenReturn(Optional.of(recipe));
+        when(repo.save(any(Recipe.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        recipeService.scaleRecipe(1L, 24);
+
+        assertEquals(24, recipe.getServings());
+        verify(repo).save(recipe);
+    }
+
+    @Test
+    @DisplayName("Undo undoes properly")
+    void undoRecipeTest() {
+        Recipe recipe = new BasicRecipe(1L, "Cake", "Delicious cake", "Flour, Sugar, Eggs",
+                "Mix and bake", 8);
+
+        when(repo.findById(1L)).thenReturn(Optional.of(recipe));
+        when(repo.save(any(Recipe.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        recipeService.scaleRecipe(1L, 24);
+        recipeService.undo(1L);
+
+        assertEquals(8, recipe.getServings());
+        verify(repo, times(2)).save(recipe); // one save for scale, one save for undo
+    }
+
+    @Test
+    @DisplayName("Undo does nothing when recipe was never scaled")
+    void undoDoesNothingIfNotScaled() {
+        Recipe recipe = new BasicRecipe(1L, "Cake", "Delicious cake", "Flour, Sugar, Eggs",
+                "Mix and bake", 8);
+
+        when(repo.findById(1L)).thenReturn(Optional.of(recipe));
+        when(repo.save(any(Recipe.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        recipeService.undo(1L);
+
+        assertEquals(8, recipe.getServings());
+        verify(repo, never()).save(any(Recipe.class));
+    }
+
+    @Test
+    @DisplayName("ScaleWithoutRecipeDoesNothing")
+    void scaleWithoutRecipeTest() {
+        // Return empty for findById
+
+        when(repo.findById(1L)).thenReturn(Optional.empty());
+        recipeService.scaleRecipe(1L, 10);
+
+        verify(repo, never()).save(any(Recipe.class));
+    }
 }
-
-
-@Test
-@DisplayName("Undo undoes properly")
-void UndoRecipeTest(){
-    Recipe recipe = new BasicRecipe
-            (1L, "Cake", "Delicious cake", "Flour, Sugar, Eggs",
-                    "Mix and bake", 8);
-    recipeService.scaleRecipe(1L, 24);
-    recipeService.undo(1L);
-    assertEquals(8, recipe.getServings() );
-}
-
-
-
