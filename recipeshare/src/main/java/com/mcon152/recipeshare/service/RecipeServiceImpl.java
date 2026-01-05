@@ -1,18 +1,22 @@
 package com.mcon152.recipeshare.service;
 
 import com.mcon152.recipeshare.domain.Recipe;
+import com.mcon152.recipeshare.domain.ScaleRecipe;
 import com.mcon152.recipeshare.domain.Tag;
 import com.mcon152.recipeshare.repository.RecipeRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
-public class RecipeServiceImpl implements RecipeService {
+public class RecipeServiceImpl implements RecipeService, ScaleRecipe {
 
     private final RecipeRepository repo;
+    private final Map<Long, Integer> lastServings = new HashMap<>();
 
     public RecipeServiceImpl(RecipeRepository repo) {
         this.repo = repo;
@@ -112,17 +116,40 @@ public class RecipeServiceImpl implements RecipeService {
 
     @Override
     public List<Recipe> findRecipesByTag(String tagName) {
-        return repo.findAll().stream()
-                .filter(recipe -> recipe.getTags().stream()
-                        .anyMatch(tag -> tag.getName().equalsIgnoreCase(tagName)))
-                .collect(Collectors.toList());
+        return repo.findAll().stream().filter(recipe -> recipe.getTags().stream().anyMatch(tag -> tag.getName().equalsIgnoreCase(tagName))).collect(Collectors.toList());
     }
 
     @Override
     public List<Recipe> findRecipesByTagId(long tagId) {
-        return repo.findAll().stream()
-                .filter(recipe -> recipe.getTags().stream()
-                        .anyMatch(tag -> tag.getId() != null && tag.getId().equals(tagId)))
-                .collect(Collectors.toList());
+        return repo.findAll().stream().filter(recipe -> recipe.getTags().stream().anyMatch(tag -> tag.getId() != null && tag.getId().equals(tagId))).collect(Collectors.toList());
+    }
+
+    public void scaleRecipe(long recipeId, int newServingSize) {
+        if (newServingSize > 0) {
+        Optional<Recipe> recipe = repo.findById(recipeId);
+            //hashmap that stores the recipe Id and it's older value
+            if(recipe.isPresent()){
+            lastServings.put(recipeId, recipe.get().getServings());
+            recipe.get().setServings(newServingSize);
+            repo.save(recipe.get()); // persist changes
+        }}
+    }
+
+    //get the last value for a certain recipe and update it to it's servings to it's older value
+    public void undo(long recipeId) {
+        //find last value of the recipe and update it
+
+        if (lastServings.containsKey(recipeId)) {
+            Optional<Recipe> currRecipe = getRecipeById(recipeId);
+
+            if (currRecipe.isPresent()) {
+                int oldServings = lastServings.get(recipeId);
+                currRecipe.get().setServings(oldServings);
+                repo.save(currRecipe.get()); // persist changes
+                lastServings.remove(recipeId); // remove after undo
+            }
+
+        }
+
     }
 }
