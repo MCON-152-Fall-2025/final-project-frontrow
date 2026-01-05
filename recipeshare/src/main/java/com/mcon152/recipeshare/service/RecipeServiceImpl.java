@@ -7,7 +7,9 @@ import com.mcon152.recipeshare.repository.RecipeRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
+import java.util.Deque;
 import java.util.List;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -17,9 +19,16 @@ public class RecipeServiceImpl implements RecipeService, ScaleRecipe {
 
     private final RecipeRepository repo;
     private final Map<Long, Integer> lastServings = new HashMap<>();
+    private final Map<Long, Deque<RecipeCommand>> commandHistory = new HashMap<>();
 
     public RecipeServiceImpl(RecipeRepository repo) {
         this.repo = repo;
+    }
+
+    private void logCommand(long recipeId, RecipeCommand command) {
+        commandHistory
+                .computeIfAbsent(recipeId, k -> new LinkedList<>())
+                .push(command);
     }
 
     @Override
@@ -126,30 +135,34 @@ public class RecipeServiceImpl implements RecipeService, ScaleRecipe {
 
     public void scaleRecipe(long recipeId, int newServingSize) {
         if (newServingSize > 0) {
-        Optional<Recipe> recipe = repo.findById(recipeId);
+            Optional<Recipe> recipe = repo.findById(recipeId);
             //hashmap that stores the recipe Id and it's older value
-            if(recipe.isPresent()){
-            lastServings.put(recipeId, recipe.get().getServings());
-            recipe.get().setServings(newServingSize);
-            repo.save(recipe.get()); // persist changes
-        }}
+            if (recipe.isPresent()) {
+                lastServings.put(recipeId, recipe.get().getServings());
+                // log command for undo using Command Pattern
+                logCommand(recipeId, new ScaleServingsLogs(recipe.get()));
+                recipe.get().setServings(newServingSize);
+                repo.save(recipe.get()); // persist changes
+            }
+        }
     }
 
-    //get the last value for a certain recipe and update it to it's servings to it's older value
+
     public void undo(long recipeId) {
-        //find last value of the recipe and update it
+        Deque<RecipeCommand> history = commandHistory.get(recipeId);
 
-        if (lastServings.containsKey(recipeId)) {
-            Optional<Recipe> currRecipe = getRecipeById(recipeId);
-
-            if (currRecipe.isPresent()) {
-                int oldServings = lastServings.get(recipeId);
-                currRecipe.get().setServings(oldServings);
-                repo.save(currRecipe.get()); // persist changes
-                lastServings.remove(recipeId); // remove after undo
+        if (history != null && !history.isEmpty()) {
+            RecipeCommand lastCommand = history.pop();
+            lastCommand.undo();
+            repo.save(lastCommand.getRecipe());
+        } else if (lastServings.containsKey(recipeId)) {
+            Optional<Recipe> recipeOpt = getRecipeById(recipeId);
+            if (recipeOpt.isPresent()) {
+                Recipe recipe = recipeOpt.get();
+                recipe.setServings(lastServings.get(recipeId));
+                repo.save(recipe);
+                lastServings.remove(recipeId);
             }
-
         }
-
     }
 }
