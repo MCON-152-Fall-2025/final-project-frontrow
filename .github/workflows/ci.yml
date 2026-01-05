@@ -19,18 +19,22 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: 'maven'
-            
+
+      - name: Show working directory
+        run: |
+          pwd
+          ls -la
+
       - name: Run tests
         run: mvn -ntp -B test
         working-directory: recipeshare
 
-           
       - name: Build with Maven
         run: mvn -B clean package
+        working-directory: recipeshare
 
-    
       - name: Upload Maven Artifact
         uses: actions/upload-artifact@v4
         with:
           name: maven-artifact
-          path: target/*.jar
+          path: recipeshare/target/*.jar
