@@ -1,5 +1,4 @@
-name: Project CI
-
+name: Project CI 
 on:
   push:
     branches: [ develop ]
@@ -24,7 +23,6 @@ jobs:
         run: |
           pwd
           ls -la
-
       - name: Run tests
         run: mvn -ntp -B test
         working-directory: recipeshare
