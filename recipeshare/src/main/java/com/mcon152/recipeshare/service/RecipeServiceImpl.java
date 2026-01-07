@@ -1,11 +1,16 @@
 package com.mcon152.recipeshare.service;
 
 import com.mcon152.recipeshare.domain.Recipe;
+import com.mcon152.recipeshare.domain.ScaleRecipe;
 import com.mcon152.recipeshare.domain.Tag;
 import com.mcon152.recipeshare.repository.RecipeRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
+import java.util.Deque;
 import java.util.List;
+import java.util.LinkedList;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -13,10 +18,17 @@ import java.util.stream.Collectors;
 public class RecipeServiceImpl implements RecipeService, ScaleRecipe {
 
     private final RecipeRepository repo;
-    Map<Long, Integer> lastServings;
+    private final Map<Long, Integer> lastServings = new HashMap<>();
+    private final Map<Long, Deque<RecipeCommand>> commandHistory = new HashMap<>();
 
     public RecipeServiceImpl(RecipeRepository repo) {
         this.repo = repo;
+    }
+
+    private void logCommand(long recipeId, RecipeCommand command) {
+        commandHistory
+                .computeIfAbsent(recipeId, k -> new LinkedList<>())
+                .push(command);
     }
 
     @Override
@@ -113,35 +125,44 @@ public class RecipeServiceImpl implements RecipeService, ScaleRecipe {
 
     @Override
     public List<Recipe> findRecipesByTag(String tagName) {
-        return repo.findAll().stream()
-                .filter(recipe -> recipe.getTags().stream()
-                        .anyMatch(tag -> tag.getName().equalsIgnoreCase(tagName)))
-                .collect(Collectors.toList());
+        return repo.findAll().stream().filter(recipe -> recipe.getTags().stream().anyMatch(tag -> tag.getName().equalsIgnoreCase(tagName))).collect(Collectors.toList());
     }
 
     @Override
     public List<Recipe> findRecipesByTagId(long tagId) {
-        return repo.findAll().stream()
-                .filter(recipe -> recipe.getTags().stream()
-                        .anyMatch(tag -> tag.getId() != null && tag.getId().equals(tagId)))
-                .collect(Collectors.toList());
+        return repo.findAll().stream().filter(recipe -> recipe.getTags().stream().anyMatch(tag -> tag.getId() != null && tag.getId().equals(tagId))).collect(Collectors.toList());
     }
-    /*scale recipe through an Id*/
-    @Override
-    public void scaleRecipe(Long recipeId, int newServingSize){
-        while(newServingSize > 0) {
+
+    public void scaleRecipe(long recipeId, int newServingSize) {
+        if (newServingSize > 0) {
+            Optional<Recipe> recipe = repo.findById(recipeId);
             //hashmap that stores the recipe Id and it's older value
-            lastServings.put(recipeId, getRecipesByTagId(recipeId).getServings());
-            getRecipesByTagId(recipeId).setServings(newServingsSize);
-        }
-    }
-    @Override
-    //get the last value for a certain recipe and update it to it's servings to it's older value
-    public void undo(Long recipeId) {
-        //find last value of the recipe and update it
-        while(lastServings.containsKey(recipeId)) {
-            getRecipesByTagId(recipeId).setServings(lastServings.get(recipeId));
+            if (recipe.isPresent()) {
+                lastServings.put(recipeId, recipe.get().getServings());
+                // log command for undo using Command Pattern
+                logCommand(recipeId, new ScaleServingsLogs(recipe.get()));
+                recipe.get().setServings(newServingSize);
+                repo.save(recipe.get()); // persist changes
+            }
         }
     }
 
+
+    public void undo(long recipeId) {
+        Deque<RecipeCommand> history = commandHistory.get(recipeId);
+
+        if (history != null && !history.isEmpty()) {
+            RecipeCommand lastCommand = history.pop();
+            lastCommand.undo();
+            repo.save(lastCommand.getRecipe());
+        } else if (lastServings.containsKey(recipeId)) {
+            Optional<Recipe> recipeOpt = getRecipeById(recipeId);
+            if (recipeOpt.isPresent()) {
+                Recipe recipe = recipeOpt.get();
+                recipe.setServings(lastServings.get(recipeId));
+                repo.save(recipe);
+                lastServings.remove(recipeId);
+            }
+        }
+    }
 }
